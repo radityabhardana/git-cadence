@@ -1,0 +1,42 @@
+name: Auto Commit Activity Pulse
+
+on:
+  schedule:
+    # Berjalan 4 kali sehari di jam-jam berbeda (WIB: ~09:17, ~14:17, ~19:17, ~23:17)
+    # Menit acak (17) dipakai untuk menghindari antrean cron GitHub Actions di menit 00.
+    - cron: '17 2,7,12,16 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Paksa buat commit sekarang (bypass acak)?'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  activity-pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Activity Bot
+        env:
+          GIT_NAME: ${{ vars.GIT_NAME || 'radityabhardana' }}
+          GIT_EMAIL: ${{ vars.GIT_EMAIL || 'rexnabagus@gmail.com' }}
+          FORCE_COMMIT: ${{ github.event.inputs.force == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.force != 'false') }}
+        run: node bot.js
+
+      - name: Push changes to GitHub
+        run: |
+          git push origin HEAD

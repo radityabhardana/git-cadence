@@ -1,0 +1,13 @@
+{
+  "name": "commitbot",
+  "version": "1.0.0",
+  "description": "Bot commit otomatis GitHub Actions dengan pola natural untuk grafik kontribusi profil.",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "force": "node bot.js --force"
+  },
+  "keywords": ["github-actions", "commit-bot", "activity-pulse"],
+  "author": "radityabhardana <rexnabagus@gmail.com>",
+  "license": "MIT"
+}
