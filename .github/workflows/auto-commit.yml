@@ -2,13 +2,14 @@ name: Auto Commit Activity Pulse
 
 on:
   schedule:
-    # Berjalan 4 kali sehari di jam-jam berbeda (WIB: ~09:17, ~14:17, ~19:17, ~23:17)
-    # Menit acak (17) dipakai untuk menghindari antrean cron GitHub Actions di menit 00.
-    - cron: '17 2,7,12,16 * * *'
+    # Berjalan 7 kali sehari (setiap ~3 jam di menit ke-23)
+    # WIB: ~08:23, ~11:23, ~14:23, ~17:23, ~20:23, ~23:23, ~02:23
+    # Menghasilkan total 6 - 10 commit acak per hari secara merata dan natural
+    - cron: '23 1,4,7,10,13,16,19 * * *'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Paksa buat commit sekarang (bypass acak)?'
+        description: 'Paksa buat batch commit sekarang (bypass limit)?'
         required: true
         type: boolean
         default: true

@@ -1,6 +1,6 @@
 /**
  * GitHub Activity Pulse Bot
- * Dibuat otomatis untuk menjaga keaktifan grafik kontribusi GitHub secara natural.
+ * Target: 6 - 10 kontribusi per hari secara acak dan natural.
  */
 
 const fs = require('fs');
@@ -10,7 +10,7 @@ const crypto = require('crypto');
 
 const LOG_FILE = path.join(__dirname, 'activity.log');
 
-// Daftar pesan commit realistis
+// Koleksi pesan commit realistis
 const COMMIT_MESSAGES = [
   'chore: update activity heartbeat [skip ci]',
   'docs: sync routine telemetry pulse',
@@ -24,10 +24,13 @@ const COMMIT_MESSAGES = [
   'chore: refresh session state record',
   'ci: automated pulse health check',
   'build: sync state heartbeat',
-  'docs: routine markdown telemetry update'
+  'docs: routine markdown telemetry update',
+  'perf: optimize telemetry buffer latency',
+  'chore(telemetry): routine pulse ping',
+  'refactor: clean up activity log buffer'
 ];
 
-// Ambil konfigurasi dari Environment Variables atau default
+// Identitas Git
 const GIT_NAME = process.env.GIT_NAME || 'radityabhardana';
 const GIT_EMAIL = process.env.GIT_EMAIL || 'rexnabagus@gmail.com';
 const FORCE_COMMIT = process.env.FORCE_COMMIT === 'true' || process.argv.includes('--force');
@@ -42,33 +45,31 @@ function runCommand(command) {
   }
 }
 
-function shouldCommitToday() {
-  if (FORCE_COMMIT) {
-    console.log('⚡ Force commit aktif (manual run / flag --force terdeteksi).');
-    return true;
-  }
-
-  const today = new Date();
-  const dayOfWeek = today.getUTCDay(); // 0: Minggu, 6: Sabtu
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-  // Peluang commit: ~80% di weekday, ~45% di weekend
-  const probability = isWeekend ? 0.45 : 0.80;
-  const roll = Math.random();
-
-  console.log(`🎲 Hari: ${isWeekend ? 'Weekend' : 'Weekday'} | Peluang: ${probability * 100}% | Roll: ${(roll * 100).toFixed(1)}%`);
-
-  return roll < probability;
+// Ambil tanggal hari ini dalam format YYYY-MM-DD (WIB / UTC+7)
+function getTodayDateString() {
+  const now = new Date();
+  const wibTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return wibTime.toISOString().substring(0, 10);
 }
 
-function getCommitCount() {
-  if (FORCE_COMMIT) return 1;
+// Hitung berapa kali commit yang sudah dicatat hari ini di activity.log
+function getTodayCommitCount(todayStr) {
+  if (!fs.existsSync(LOG_FILE)) return 0;
+  const content = fs.readFileSync(LOG_FILE, 'utf-8');
+  const lines = content.split('\n');
+  let count = 0;
+  for (const line of lines) {
+    if (line.includes(`[${todayStr}`)) {
+      count++;
+    }
+  }
+  return count;
+}
 
-  const roll = Math.random();
-  // 65% peluang 1 commit, 25% peluang 2 commit, 10% peluang 3 commit
-  if (roll < 0.65) return 1;
-  if (roll < 0.90) return 2;
-  return 3;
+// Tentukan target commit harian antara 6 sampai 10
+function getDailyTarget() {
+  // Acak antara 6 sampai 10 (e.g. 6, 7, 8, 9, 10)
+  return Math.floor(Math.random() * 5) + 6;
 }
 
 function getRandomCommitMessage() {
@@ -76,48 +77,85 @@ function getRandomCommitMessage() {
   return COMMIT_MESSAGES[index];
 }
 
-function recordHeartbeat(index, total) {
+function recordHeartbeat(index, total, todayCount) {
   const now = new Date();
   const isoTime = now.toISOString();
-  // Format WIB (UTC+7)
   const wibTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
     .toISOString()
     .replace('T', ' ')
     .substring(0, 19) + ' WIB';
+  const todayStr = getTodayDateString();
   const pulseHash = crypto.randomBytes(4).toString('hex');
-  
-  const logEntry = `[${wibTime} / ${isoTime}] [pulse:${pulseHash}] Batch ${index + 1}/${total} - Status: ACTIVE\n`;
+
+  const logEntry = `[${todayStr}] [${wibTime} / ${isoTime}] [pulse:${pulseHash}] Commit #${todayCount} (Batch ${index + 1}/${total}) - Status: ACTIVE\n`;
 
   fs.appendFileSync(LOG_FILE, logEntry, 'utf-8');
   console.log(`📝 Log ditambahkan: ${logEntry.trim()}`);
 }
 
 function main() {
-  console.log('--- Memulai GitHub Activity Bot ---');
+  console.log('========================================');
+  console.log('   GitHub Activity Pulse Bot (6-10/hari) ');
+  console.log('========================================');
   console.log(`Author: ${GIT_NAME} <${GIT_EMAIL}>`);
 
-  if (!shouldCommitToday()) {
-    console.log('💤 Jadwal dilewati hari/sesi ini agar pola commit terlihat natural dan acak.');
+  const todayStr = getTodayDateString();
+  const alreadyCommittedToday = getTodayCommitCount(todayStr);
+  const dailyTarget = getDailyTarget();
+
+  console.log(`📅 Tanggal hari ini (WIB): ${todayStr}`);
+  console.log(`📊 Commit sudah tercatat hari ini: ${alreadyCommittedToday}`);
+  console.log(`🎯 Target harian acak: ${dailyTarget} commit`);
+
+  let commitCount = 0;
+
+  if (FORCE_COMMIT) {
+    // Jika dipaksa manual (Run workflow / --force), buat 2 - 4 commit sekaligus
+    commitCount = Math.floor(Math.random() * 3) + 2;
+    console.log(`⚡ Mode Force/Manual aktif: membuat ${commitCount} commit langsung!`);
+  } else {
+    // Mode jadwal cron
+    if (alreadyCommittedToday >= 10) {
+      console.log('🎉 Target maksimal harian (10 commit) sudah tercapai. Istirahat untuk hari ini.');
+      return;
+    }
+
+    if (alreadyCommittedToday >= dailyTarget) {
+      // 80% kemungkinan istirahat jika sudah mencapai target, 20% kemungkinan nambah 1 lagi jika < 10
+      if (Math.random() > 0.2) {
+        console.log(`✅ Target harian (${dailyTarget}) sudah tercapai. Sesi ini istirahat.`);
+        return;
+      }
+    }
+
+    // Setiap sesi cron menghasilkan 1 - 2 commit
+    const sisa = Math.max(1, 10 - alreadyCommittedToday);
+    const rollCount = Math.floor(Math.random() * 2) + 1; // 1 atau 2 commit
+    commitCount = Math.min(rollCount, sisa);
+  }
+
+  if (commitCount <= 0) {
+    console.log('💤 Tidak ada commit yang dibuat pada sesi ini.');
     return;
   }
 
-  // Konfigurasi identitas git
+  // Set konfigurasi git author
   runCommand(`git config user.name "${GIT_NAME}"`);
   runCommand(`git config user.email "${GIT_EMAIL}"`);
 
-  const commitCount = getCommitCount();
-  console.log(`🚀 Melakukan ${commitCount} commit...`);
+  console.log(`🚀 Melakukan ${commitCount} commit pada sesi ini...`);
 
   for (let i = 0; i < commitCount; i++) {
-    recordHeartbeat(i, commitCount);
+    const currentTotal = alreadyCommittedToday + i + 1;
+    recordHeartbeat(i, commitCount, currentTotal);
     const msg = getRandomCommitMessage();
 
     runCommand('git add activity.log');
     runCommand(`git commit -m "${msg}"`);
-    console.log(`✅ Commit #${i + 1} berhasil: "${msg}"`);
+    console.log(`✅ Commit #${i + 1}/${commitCount} berhasil: "${msg}"`);
   }
 
-  console.log('🎉 Selesai! Siap untuk di-push ke remote repository.');
+  console.log('🎉 Selesai! Semua commit berhasil dibuat.');
 }
 
 main();
