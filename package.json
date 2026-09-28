@@ -1,13 +1,15 @@
 {
   "name": "commitbot",
-  "version": "1.0.0",
-  "description": "Bot commit otomatis GitHub Actions dengan pola natural untuk grafik kontribusi profil.",
+  "version": "2.0.0",
+  "description": "Bot commit otomatis GitHub Actions dengan pola hyper-random natural (3-17 commit/hari, off-days, non-repetitive).",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "force": "node bot.js --force"
+    "force": "node bot.js --force",
+    "status": "node bot.js --status",
+    "dry-run": "node bot.js --dry-run"
   },
-  "keywords": ["github-actions", "commit-bot", "activity-pulse"],
+  "keywords": ["github-actions", "commit-bot", "activity-pulse", "anti-repetitive"],
   "author": "radityabhardana <rexnabagus@gmail.com>",
   "license": "MIT"
 }

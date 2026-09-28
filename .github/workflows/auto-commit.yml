@@ -2,14 +2,17 @@ name: Auto Commit Activity Pulse
 
 on:
   schedule:
-    # Berjalan 7 kali sehari (setiap ~3 jam di menit ke-23)
-    # WIB: ~08:23, ~11:23, ~14:23, ~17:23, ~20:23, ~23:23, ~02:23
-    # Menghasilkan total 6 - 10 commit acak per hari secara merata dan natural
-    - cron: '23 1,4,7,10,13,16,19 * * *'
+    # Berjalan 2x per jam di menit ke-18 dan ke-48 (48 slot evaluasi per hari)
+    # Jadwal acak dinamis di bot.js:
+    # - Mayoritas hari: 3 - 17 commit per hari
+    # - Hari santai/minimal: 1 - 2 commit
+    # - Hari libur (off-day): 0 commit (probabilitas sangat kecil ~1.8%)
+    # - Jam tidur WIB (02:00 - 06:59): 97% jeda tidur
+    - cron: '18,48 * * * *'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Paksa buat batch commit sekarang (bypass limit)?'
+        description: 'Paksa buat batch commit sekarang (bypass limit & jadwal)?'
         required: true
         type: boolean
         default: true
@@ -40,4 +43,5 @@ jobs:
 
       - name: Push changes to GitHub
         run: |
+          git pull --rebase origin main || true
           git push origin HEAD
